@@ -1,0 +1,93 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Copyright 2015 Junko Tsuji
+
+# Read adapt-clip output, collapse the extracted inserts,
+# sort the sequences by alphabetical order, and write
+# non-redundant reads with the read counts in a specified format.
+
+# FASTA format (default) = 2 lines for a record:
+#     1: > [extractedInsert] _ [readCount]
+#     2:   [extractedInsert]
+
+# TAB format = 1 line for a record:
+#     1: [extractedInsert] /tab/ [readCount]
+
+# FASTQ format = 4 lines for a record:
+#     1: @ [extractedInsert] _ [readCount]
+#     2:   [extractedInsert]
+#     3: + [extractedInsert] _ [readcount]
+#     4: "~" * length(extractedInsert)
+
+# NOTE: this loads all insert sequences into memory.
+# The memory usage and running time for 100 million inserts are
+# around ~2GB and ~5 mins respectively.
+
+# If this uses too much RAM, try the following command:
+# cut -f1 ${FILE} | sort | uniq -c | awk '{print ">"$2"_"$1"\n"$2}'
+# The computation for 100 million inserts with the shell script
+# combined with AWK takes ~10MB RAM usage and ~15 min runtime.
+
+import sys, os.path, re, fileinput, signal
+from optparse import OptionParser
+from operator import itemgetter
+
+def fastaOutput(f):
+    for seq, cnt in f:
+        print ">%s_%d" % (seq, cnt)
+        print seq
+
+def fastqOutput(f):
+    for seq, cnt in f:
+        seqLen = len(seq)
+        print "@%s_%d length=%d" % (seq, cnt, seqLen)
+        print seq
+        print "+%s_%d length=%d" % (seq, cnt, seqLen)
+        print "~" * seqLen
+
+def tabOutput(f):
+    for seq, cnt in f:
+        print "%s\t%d" % (seq, cnt)
+
+def adaptClipInput(lines):
+    for line in lines:
+        line = line.rstrip()
+        if not line: continue
+        yield line.split("\t")
+
+def readCollapse(opts, args):
+    f = {}
+    seqs = adaptClipInput(fileinput.input(args[0]))
+    for seq in seqs:
+        f[seq[0]] = f.get(seq[0], 0) + 1
+    f = sorted(f.items(), key=itemgetter(0))
+    if   opts.t: tabOutput(f)
+    elif opts.q: fastqOutput(f)
+    else:        fastaOutput(f)
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    usage = "%prog [options] <adapt-clip-output>"
+    description = "Collapse reads and write them in FASTA format."
+
+    op = OptionParser(usage=usage, description=description)
+
+    op.add_option("-f", action="store_true",
+                  help="output in FASTA format (default)")
+    op.add_option("-t", action="store_true",
+                  help="output in TAB format")
+    op.add_option("-q", action="store_true",
+                  help="output in FASTQ format")
+
+    (opts, args) = op.parse_args()
+
+    if len(args) != 1:
+        op.error("input adapt-clip output")
+
+    try:
+        readCollapse(opts, args)
+    except KeyboardInterrupt: pass
+    except Exception, e:
+        prog = os.path.basename(sys.argv[1])
+        sys.exit(prog + ": error: " + str(e))

@@ -1,0 +1,127 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Copyright 2015 Junko Tsuji
+
+# Predict 3'adapter sequence from FASTQ input by counting
+# kmers and assembling more frequent kmers.
+
+# For filtering less frequent kmers, this script computes
+# rate between the counts of the most frequent kmer and
+# a target kmer as a cutoff:
+
+# Rate = mostFrequentKmerCount / targetKmerCount
+
+# If the rate is lower than the specified cutoff, the
+# kmer is discarded.
+
+import sys, os.path, fileinput, re, signal
+from operator import itemgetter
+from optparse import OptionParser
+
+def fastqInput(lines):
+    for i, x in enumerate(lines):
+        if i % 4 == 1: yield x.rstrip()
+
+def calcOverlap(x, y, seed):
+    if not len(x) or not len(y):
+        return 0
+    for m in re.finditer(y[:seed], x):
+        overlap = seed
+        p = m.end()
+        if len(x) == p: return overlap
+        tail = re.search(x[p:], y)
+        if not tail: continue
+        if tail.start() == seed:
+            return tail.end()
+    return 0
+
+def filterPolymer(kmers, kmer_len, rate):
+    cutoff = kmer_len/2
+    pa = [re.compile(c * cutoff) for c in "ACGTN"]
+    x, i = -1, -1
+    while x != len(pa):
+        i += 1
+        x = sum([not p.findall(kmers[i][0]) for p in pa])
+    max_hits = float(kmers[i][1])
+
+    clean = []
+    for s, n in kmers[i:]:
+        x = sum([not p.findall(s) for p in pa])
+        if x != len(pa): continue
+        if max_hits/n > rate: break
+        clean.append((s, n))
+    return clean
+
+def assembleKmers(kmers, seed, rate):
+    pre_l, new_l = 0, len(kmers)
+    while pre_l != new_l:
+        pre_l = len(kmers)
+        for i in xrange(pre_l):
+            kmer, hits = kmers[i]
+            if not hits: continue
+            max_o, max_j = 0, 0
+            for j in xrange(pre_l):
+                if i == j: continue
+                o = calcOverlap(kmer, kmers[j][0], seed)
+                if o > max_o: max_o, max_j = o, j
+            if max_o > 0:
+                kmer += kmers[max_j][0][max_o:]
+                hits += kmers[max_j][1]
+                kmers[i] = (kmer, hits)
+                kmers[max_j] = ('', 0)
+        kmers = [k for k in kmers if k != ('', 0)]
+        new_l = len(kmers)
+    return kmers
+
+def adaptPred(opts, args):
+    if opts.k <= 0: raise Exception("bad value: -k")
+    if opts.r <= 1: raise Exception("bad value: -r")
+    f = {}
+    cnt = 0
+    kmer_len = opts.k
+    sample_num = 50000
+    fastqs = fastqInput(fileinput.input(args[0]))
+    for seq in fastqs:
+        l = len(seq)
+        for i in xrange(l - kmer_len + 1):
+            kmer = seq[i:i+kmer_len]
+            f[kmer] = f.get(kmer, 0) + 1
+        cnt += 1
+        if cnt == sample_num: break
+    f = sorted(f.items(), key=itemgetter(1), reverse=True)
+    f = filterPolymer(f, kmer_len, opts.r)
+    f_asm = assembleKmers(f, kmer_len/2, opts.r)
+    a = sorted(f_asm, key=itemgetter(1), reverse=True)
+    outStr = "Predicted_3'adapter_%d=%s"
+    if opts.a:
+        for i, x in enumerate(a):
+            print outStr % (i+1, x[0])
+    else:
+        print outStr % (1, a[0][0])
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    usage = "%prog [options] <fastq>"
+    description = "Predict 3'adapter sequence from a FASTQ input."
+
+    op = OptionParser(usage=usage, description=description)
+
+    op.add_option("-k", metavar="BP", type="int", default=9,
+                  help="kmer length in bp (default=%default)")
+    op.add_option("-r", metavar="FLOAT", type="float", default=1.4,
+                  help="filtering ratio for less frequent kmers (default=%default)")
+    op.add_option("-a", action="store_true",
+                  help="show other candidates if any")
+
+    (opts, args) = op.parse_args()
+
+    if len(args) != 1:
+        op.error("input fastq")
+
+    try:
+        adaptPred(opts, args)
+    except KeyboardInterrupt: pass
+    except Exception ,e:
+        prog = os.path.basename(sys.argv[0])
+        sys.exit(prog + ": error: " + str(e))

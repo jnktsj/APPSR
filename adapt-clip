@@ -1,0 +1,150 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Copyright 2015 Junko Tsuji
+
+# Clip adapters off from reads in FASTQ by searching kmer
+# exact prefix matches. There is an option '-s' that tries
+# to find prefix matches in length of (k + 1) nucleotides
+# with 1 mismatch if perfect prefix matches are not found.
+
+# Output format:
+#  [0] insert
+#  [1] insert length
+#  [2] 5'adapter mismatch
+#  [3] 5'adapter sequence
+#  [4] 3'adapter mismatch
+#  [5] 3'adapter sequence
+
+import sys, os.path, re, fileinput, signal
+from optparse import OptionParser
+
+def fastqInput(lines):
+    for i, x in enumerate(lines):
+        if i % 4 == 1: yield x.rstrip()
+
+def makeRegex(aSeq, aLen, is_3prime, sensitive):
+    if not aSeq: return None, None
+
+    cutoff = aLen if not sensitive else aLen + 1
+    if len(aSeq) < cutoff:
+        message = "input adapters longer than %d nt"
+        raise Exception(message % (cutoff-1))
+
+    if is_3prime:
+        pat = "(.*)"
+        pSeq, mSeq = aSeq[:aLen], aSeq[:aLen+1]
+        beg, end = 0, aLen
+    else:
+        pat = "(.*?)"
+        pSeq, mSeq = aSeq[-aLen:], aSeq[-(aLen+1):]
+        beg, end = 1, aLen+1
+
+    pp = re.compile(pat+pSeq, re.IGNORECASE)
+    if not sensitive: return pp, []  # perfect match only
+    mp = []
+    seed = list(mSeq)
+    for i in range(beg, end):
+        ps = seed[:]
+        ps[i] = '.'
+        x = re.compile(pat+''.join(ps), re.IGNORECASE)
+        mp.append(x)
+    return pp, mp  # perfect match and mismatch
+
+def matchAdapters(seq, pp, mps, sensitive, pi=0, mi=0, l=0):
+    if not pp: return l, '*'
+
+    p = pp.search(seq)
+    if p:     return (p.end()-pi), '0'
+
+    if not sensitive: return l, '*'
+    else:
+        for mp in mps:
+            m = mp.search(seq)
+            if m: return (m.end()-mi), '1'
+    return l, '*'
+
+def adaptClip(opts, args):
+    if opts.m <= 0: raise Exception("bad value: -m")
+    if opts.x <= 0: raise Exception("bad value: -x")
+    if opts.l <= 0: raise Exception("bad value: -l")
+    if opts.m == opts.x:
+        raise Exception("bad read length cutoff range")
+    if not opts.f and not opts.b:
+        raise Exception("input adapter sequence")
+    if opts.f == opts.b:
+        raise Exception("5' and 3' adapters are the same")
+    if opts.cut_3p < 0:
+        raise Exception("input positive value for 3'trimming")
+    if opts.cut_5p < 0:
+        raise Exception("input positive value for 5'trimming")
+
+    beg, offset = opts.cut_5p, opts.cut_3p
+    fSeq, bSeq, aLen = opts.f, opts.b, opts.l
+    if not fSeq and bSeq:
+        req = lambda x, y: y != '*' or opts.a
+    elif fSeq and bSeq:
+        if opts.B:
+            req = lambda x, y: x != '*' and y != '*' or opts.a
+        else:
+            req = lambda x, y: x != '*' or y != '*' or opts.a
+    elif fSeq and not bSeq:
+        req = lambda x, y: x != '*' or opts.a
+
+    f_pp, f_mp = makeRegex(fSeq, aLen, False, opts.s)
+    b_pp, b_mp = makeRegex(bSeq, aLen, True,  opts.s)
+
+    fastqs = fastqInput(fileinput.input(args[0]))
+    for seq in fastqs:
+        seqLen = len(seq)
+        f_i, f_mm = matchAdapters(seq, f_pp, f_mp, opts.s)
+        b_i, b_mm = matchAdapters(seq, b_pp, b_mp, opts.s,
+                                  aLen, aLen+1, seqLen)
+        f_i += beg
+        b_i -= offset
+        ins = seq[f_i:b_i]
+        insLen = len(ins)
+        if req(f_mm, b_mm) and (opts.m <= insLen and insLen <= opts.x):
+            fHit = seq[:f_i] if f_i > 0 else '*'
+            bHit = seq[b_i:] if b_i < seqLen else '*'
+            print "\t".join([ins, str(insLen), f_mm, fHit, b_mm, bHit])
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    usage = "%prog [options] <fastq>"
+    description = "Clip adapters off and extract inserts."
+
+    op = OptionParser(usage=usage, description=description)
+
+    op.add_option("-3", dest="b", metavar="SEQ",
+                  help="3'adapter sequence")
+    op.add_option("-5", dest="f", metavar="SEQ",
+                  help="5'adapter sequence")
+    op.add_option("--cut-3p", metavar="BP", type="int", default=0,
+                  help="cut specified number of bases from 3'ends")
+    op.add_option("--cut-5p", metavar="BP", type="int", default=0,
+                  help="cut specified number of bases from 5'ends")
+    op.add_option("-l", metavar="BP", default=7, type="int",
+                  help="adapter match length in bp (default=%default)")
+    op.add_option("-m", metavar="BP", default=16, type="int",
+                  help="minimum read length in bp (default=%default)")
+    op.add_option("-x", metavar="BP", default=36, type="int",
+                  help="maximum read length in bp (default=%default)")
+    op.add_option("-s", action="store_true",
+                  help="sensitive adapter search with 1 mismatch (default=off)")
+    op.add_option("-B", action="store_true",
+                  help="only print the reads with both 5' and 3' adapter matches")
+    op.add_option("-a", action="store_true",
+                  help="print all reads with and without adapter matches if the reads are in the range specified with '-m' and '-x'")
+
+    (opts, args) = op.parse_args()
+
+    if len(args) != 1:
+        op.error("input fastq")
+
+    try:
+        adaptClip(opts, args)
+    except KeyboardInterrupt: pass
+    except Exception, e:
+        prog = os.path.basename(sys.argv[0])
+        sys.exit(prog + ": error: " + str(e))

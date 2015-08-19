@@ -1,0 +1,273 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Copyright 2015 Junko Tsuji
+
+# Evaluate input 3'adapter(s) or search an optimal 3'adapter
+# in an exhaustive manner. This program actually executes
+# mapping reads to the genome by taking a command line. This
+# program selects the 3'adapter that has more reads mapped to the
+# genome as an optimal 3'adapter. This program also reports
+# a brief summary table for each evaluated adapter.
+# When the fraction of mapped reads is lower than 0.2, the program
+# judges the library is poor quality.
+
+import sys, os.path, fileinput, uuid, subprocess, re, signal
+from optparse import OptionParser, OptionGroup
+
+def cleanUp(temp):
+    if os.path.exists(temp):
+        cmd = "rm -r %s" % temp
+        subprocess.call(cmd.split())
+
+def checkInput(cmd, path):
+    s = cmd.split()[0]
+    if os.path.dirname(s):
+        if not os.path.exists(s):
+            raise Exception("can't find %s" % s)
+    else:
+        checkCmd = "which %s" % s
+        try:
+            p = subprocess.check_output(checkCmd)
+        except OSError:
+            raise Exception("can't find %s" % s)
+    if not re.findall("@in", cmd):
+        raise Exception("can't locate input argument: @in")
+    if not re.findall("@out", cmd):
+        raise Exception("can't locate output argument: @out")
+    if path: path += '/'
+    return cmd, path
+
+def checkInterval(strIn):
+    s = strIn.split(":")
+    if len(s) != 3:
+        raise Exception("bad interval %s" % strIn)
+    for n in s:
+        try: float(n)
+        except ValueError:
+            msg = "bad component '%s' in %s" % (n, strIn)
+            raise Exception(msg)
+
+def checkOptions(opts):
+    if opts.l <= 0: raise Exception("bad value: -l")
+    if opts.m <= 0: raise Exception("bad value: -m")
+    if opts.x <= 0: raise Exception("bad value: -x")
+    if opts.m == opts.x:
+        raise Exception("bad read length cutoff range")
+    if opts.p <= 0 or 1 < opts.p:
+        raise Exception("bad subsampling fraction")
+    checkInterval(opts.k)
+    checkInterval(opts.r)
+
+def fastqPrep(fq, temp):
+    if not os.path.exists(fq):
+        raise Exception("can't open %s" % fq)
+    choice = { "gz" :"zcat %s > %s",  "zip":"zcat %s > %s",
+               "bz2":"bzcat %s > %s", "tar":"tarcat %s > %s",
+               "fq":"cp %s %s", "fastq":"cp %s %s" }
+    ext = fq.split('.')[-1]
+    if ext not in choice:
+        raise Exception("unknown extension format: %s" % fq)
+    fqIn = "%s/input.fq" % temp
+    cmd = choice[ext] % (fq, fqIn)
+    subprocess.call(cmd, shell=True)
+    return fqIn
+
+def fastqInput(lines):
+    record = ""
+    for i, x in enumerate(lines):
+        record += x
+        if i % 4 == 3:
+            yield record
+            record = ""
+
+def subsampleFastq(fqIn, rate, temp):
+    if rate == 1: return fqIn
+    num = int(1.0/rate)
+    fastq = fastqInput(fileinput.input(fqIn))
+    fqSubIn = "%s/input.sub.fq" % temp
+    f = open(fqSubIn, "w")
+    for i, record in enumerate(fastq):
+        if i % num == 0: f.write(record)
+    f.close()
+    return fqSubIn
+
+def countReadsFastq(fqIn):
+    cmd = "wc -l %s | awk '{print $1/4}'" % fqIn
+    l = subprocess.check_output(cmd, shell=True)
+    return l.rstrip()
+
+def getReadLenDeviation(fqIn):
+    sample = 50000
+    fastq = fastqInput(fileinput.input(fqIn))
+    f = {}
+    mean, sd = 0, 0
+    for i, record in enumerate(fastq):
+        if i == sample: break
+        sl = len(record.split('\n')[1])
+        f[sl] = f.get(sl, 0) + 1
+        mean += sl
+    mean /= float(sample)
+    sd = sum([(l - mean)**2 * c for l, c in f.items()])
+    sd = (sd / float(sample))**0.5
+    return sd
+
+def generateInterval(inStr, isInt=True):
+    s = inStr.split(":")
+    s = map(int, s) if isInt else map(float, s)
+    beg, end, interval = s
+    while beg < end:
+       yield beg
+       beg += interval
+    yield end
+
+def adaptPredCmd(path, kIn, rIn, fqIn):
+    cmd = "%sadapt-pred -k %d -r %f %s"
+    cmd = cmd % (path, kIn, rIn, fqIn)
+    out = subprocess.check_output(cmd.split())
+    return out.rstrip().split('=')[-1]
+
+def adaptClipCmd(path, oIn, fqIn, faOut):
+    cmd = "%sadapt-clip %s %s | %sread-collapse - > %s"
+    cmd = cmd % (path, oIn, fqIn, path, faOut)
+    subprocess.call(cmd, shell=True)
+
+def checkOutputSam(samOut):
+    if not os.path.exists(samOut):
+        raise Exception("can't open SAM")
+    insert, mapped = set(), set()
+    for line in open(samOut):
+        if line.startswith("@"): continue
+        line = line.rstrip().split("\t")
+        if not line: continue
+        insert.add(line[0])
+        if line[2] != '*': mapped.add(line[0])
+    insertCount = sum([int(n.split('_')[1]) for n in insert])
+    mappedCount = sum([int(n.split('_')[1]) for n in mapped])
+    return insertCount, mappedCount
+
+def mapInsertCmd(path, oIn, fqIn, c, temp):
+    faOut = "%s/insert.fa" % temp
+    samOut = "%s/output.sam" % temp
+    adaptClipCmd(path, oIn, fqIn, faOut)
+    cmd = c.replace("@in", faOut).replace("@out", samOut)
+    cmd += " 2> /dev/null" # slurp stderr to be quiet
+    subprocess.call(cmd, shell=True)
+    return checkOutputSam(samOut)
+
+def recordPerform(aIn, cnts, aReads, s):
+    trf = cnts[0]/aReads * 100
+    mrf = cnts[1]/aReads * 100
+    return [aIn.split()[0], cnts[0], trf, cnts[1], mrf, s]
+
+def makeReport(table, ar, p, sd):
+    out = ["# Report: sampled_reads=%d (total_reads * %.2f)" % (ar, p)]
+    header = [ "# 3'adapter",
+               "reads_extracted",
+               "(reads_extracted/sampled_reads)%",
+               "reads_mapped",
+               "(reads_mapped/sampled_reads)%",
+               "params_k:r" ]
+    out.append("\t".join(header))
+    maxValue, maxIndex = -1, -1
+    for i, x in enumerate(table):
+        mapped = x[3]
+        if mapped > maxValue:
+            maxValue, maxIndex = mapped, i
+        out.append("%s\t%d\t%.2f\t%d\t%.2f\t%s" % tuple(x))
+    if table[maxIndex][4] >= 20: # QC cutoff
+        optimal = table[maxIndex][0]
+    else:
+        optimal = "NULL"
+
+    if optimal == "RAW_INPUT":
+        if sd > 0:
+            out.append("# Input reads look already clean!")
+        else:
+            optimal += "?"
+    print "Optimal_3'adapter=%s\n" % optimal
+    print '\n'.join(out)
+
+def adaptQC(opts, args, path, temp):
+    checkOptions(opts)
+    cmd, path = checkInput(args[0], path)
+    mkdirCmd = "mkdir %s" % temp
+    subprocess.call(mkdirCmd.split())
+
+    fqIn = fastqPrep(args[1], temp)
+    fqIn = subsampleFastq(fqIn, opts.p, temp)
+    aReads = float(countReadsFastq(fqIn))
+    sd = getReadLenDeviation(fqIn)
+
+    if opts.seq:
+        adapts = set(opts.seq.split(","))
+        setstr = ["user-input" for aIn in adapts]
+    else:
+        params = {}
+        for kIn in generateInterval(opts.k):
+            for rIn in generateInterval(opts.r, False):
+                aIn = adaptPredCmd(path, kIn, rIn, fqIn)
+                sIn = "%d:%.1f" % (kIn, rIn)
+                params.setdefault(aIn[:8], []).append(sIn)
+        adapts = params.keys()
+        setstr = [';'.join(s) for s in params.values()]
+        adapts.append("RAW_INPUT -a")
+        setstr.append("NO_TREATMENT")
+
+    table = []
+    for i, aIn in enumerate(adapts):
+        if not aIn: continue
+        oIn = "-3 %s -l %d -m %d -x %d" % (aIn, opts.l, opts.m, opts.x)
+        cnts = mapInsertCmd(path, oIn, fqIn, cmd, temp)
+        res = recordPerform(aIn, cnts, aReads, setstr[i])
+        table.append(res)
+    makeReport(table, aReads, opts.p, sd)
+    
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    usage = "%prog [options] <mapping_cmd> <fastq>"
+    description = "Evaluate predicted 3'adapters or search 3'adapters in an exhaustive manner."
+
+    op = OptionParser(usage=usage, description=description)
+
+    op.add_option("-l", metavar="BP", default=7, type="int",
+                  help="adapter match length in bp (default=%default)")
+    op.add_option("-m", metavar="BP", default=16, type="int",
+                  help="minimum read length in bp (default=%default)")
+    op.add_option("-x", metavar="BP", default=36, type="int",
+                  help="maximum read length in bp (default=%default)")
+
+    e_op = OptionGroup(op, "Evaluation")
+    e_op.add_option("-3", dest="seq", metavar="SEQ1,SEQ2,...",
+                    help="comma-separated list of 3'adapter(s) for quality control")
+
+    b_op = OptionGroup(op, "Exhaustive search")
+    b_op.add_option("-p", metavar="FLOAT", default=1.0, type="float",
+                    help="subsampling fraction of reads (default=%default)")
+    b_op.add_option("-k", metavar="BEG:END:INT", default="9:11:2",
+                    help="range for kmers (default='%default')")
+    b_op.add_option("-r", metavar="BEG:END:INT", default="1.2:1.4:0.1",
+                    help="range for filtering ratios (default='%default')")
+    b_op.add_option("--temp", metavar="PATH", default=".",
+                    help="path for a temporal directory (default='%default')")
+
+    op.add_option_group(e_op)
+    op.add_option_group(b_op)
+    (opts, args) = op.parse_args()
+    temp = opts.temp + '/adapt-qc_tmp_' + str(uuid.uuid4())
+
+    if len(args) != 2:
+        op.error("input 2 required arguments")
+
+    try:
+        path = os.path.dirname(sys.argv[0])
+        adaptQC(opts, args, path, temp)
+    except KeyboardInterrupt:
+        cleanUp(temp)
+    except Exception, e:
+        prog = os.path.basename(sys.argv[0])
+        cleanUp(temp)
+        sys.exit(prog + ": error: " + str(e))
+    finally:
+        cleanUp(temp)
