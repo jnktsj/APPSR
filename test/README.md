@@ -1,10 +1,10 @@
 ## Test datasets
 This direcotry contains the following files:
 ###### FASTQ files
-* `good.fq`: good quality reads (3′adapter: `TGGAATTC`)
-* `poor.fq`: poor quality reads (3′adapter: `CGCCTTGG`)
+* `good.fq`: good quality reads (3′ adapter: `TGGAATTC`)
+* `poor.fq`: poor quality reads (3′ adapter: `CGCCTTGG`)
 * `processed.fq`: reads already processed, i.e., reads that do not
-  contain any 3′adapters
+  contain any 3′ adapters
 
 ###### Processed files with APPSR
 * `trimmed.fq`: reads in `poor.fq` processed by `adapt-trim`
@@ -45,7 +45,7 @@ You can find trimmed reads in `[filename]`. For checking the
 consistency, compare your result to `trimmed.fq`.
 
 ### Adapter clipping
-Let's go back to `good.fq` and clip the 3′adapter.
+Let's go back to `good.fq` and clip the 3′ adapter.
 
 Type:
 
@@ -103,7 +103,7 @@ You will get:
       RAW_INPUT       0              0.00                                  0           0.00                            NO_TREATMENT
 
 ##### Case 2: `processed.fq`
-When the adapter was already clipped from the reads, you will get:
+If the adapter was already clipped from the reads, you will get:
 
     Optimal_3'adapter=RAW_INPUT
     
@@ -115,7 +115,7 @@ When the adapter was already clipped from the reads, you will get:
     # Input reads look already clean!
 
 ##### Case 3: `poor.fq`
-When the quality of reads in a FASTQ is not good, you will get:
+When the quality of reads in a FASTQ is poor, you will get:
 
     Optimal_3'adapter=NULL
     
