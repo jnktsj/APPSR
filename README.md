@@ -7,20 +7,20 @@ APPSR: automated preprocessing pipeline for meta-analysis of small RNA sequencin
 APPSR is a suite of tools for preprocessing small RNA sequencing
 libraries.  This package enables users to implement an automated
 preprocessing pipeline with only a few commands (see
-[Examples](https://github.com/jnktsj/test#examples)).
+[Examples](https://github.com/jnktsj/APPSR#examples)).
 
 APPSR is composed of the following six programs:
-* [`adapt-pred`](https://github.com/jnktsj/test#adapt-pred-3adapter-prediction)
+* [`adapt-pred`](https://github.com/jnktsj/APPSR#adapt-pred-3adapter-prediction)
   predicts 3′ adapter sequences in an input FASTQ
-* [`adapt-clip`](https://github.com/jnktsj/test#adapt-clip-adapter-clipping)
+* [`adapt-clip`](https://github.com/jnktsj/APPSR#adapt-clip-adapter-clipping)
   clips 5′ or/and 3′ adapter sequences from input reads
-* [`adapt-qc`](https://github.com/jnktsj/test#adapt-qc-exhaustive-3adapter-search-and-quality-control)
+* [`adapt-qc`](https://github.com/jnktsj/APPSR#adapt-qc-exhaustive-3adapter-search-and-quality-control)
   search 3′ adapter sequences exhaustively and does quality control
-* [`qual-offset`](https://github.com/jnktsj/test#qual-offset-quality-offset-estimation)
+* [`qual-offset`](https://github.com/jnktsj/APPSR#qual-offset-quality-offset-estimation)
   estimates ASCII-encoded quality score offsets
-* [`qual-trim`](https://github.com/jnktsj/test#qual-trim-quality-trimming)
+* [`qual-trim`](https://github.com/jnktsj/APPSR#qual-trim-quality-trimming)
   trims low quality bases in input reads
-* [`read-collapse`](https://github.com/jnktsj/test#read-collapse-read-collapsing)
+* [`read-collapse`](https://github.com/jnktsj/APPSR#read-collapse-read-collapsing)
   merges identical reads while retaining the counts
 
 ## Requirement
