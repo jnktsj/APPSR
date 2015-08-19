@@ -48,8 +48,8 @@ to the program using a pipe. For example:
 
 #### Options
 ###### -k BP
-K-mer length to use to compute k-mer frequency in the input FASTQ. The default
-value is 9 nucleotides (nt).
+K-mer length to use to compute k-mer frequency in the input FASTQ.
+The default value is 9 nucleotides (nt).
 ###### -r FLOAT
 Cutoff ratio for filtering less frequent k-mers. For each k-mer, a
 ratio of the frequency of the most abundant k-mer to the frequency of
@@ -182,8 +182,9 @@ directory in the current directory.
 
 ### `qual-trim`: quality trimming
 `qual-trim` trims low quality bases in input reads with the same
-quality trimming algorith as the one used by BWA. Since small RNA libraries
-are typically single-ended, only single-ended reads are assumed.
+quality trimming algorith as the one used by BWA. Since small RNA
+libraries are typically single-ended, only single-ended reads are
+assumed.
 
 #### Usage
 
