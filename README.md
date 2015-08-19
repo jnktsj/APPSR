@@ -1,5 +1,7 @@
-# APPSR (version: 1.0)
+# APPSR
 APPSR: automated preprocessing pipeline for meta-analysis of small RNA sequencing data.
+
+(version: 1.0)
 
 ## Introduction
 APPSR is a suite of tools for preprocessing small RNA sequencing
