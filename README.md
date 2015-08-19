@@ -10,11 +10,11 @@ preprocessing pipeline with only a few commands (see
 [Examples](https://github.com/jnktsj/APPSR#examples)).
 
 APPSR is composed of the following six programs:
-* [`adapt-pred`](https://github.com/jnktsj/APPSR#adapt-pred-3adapter-prediction)
+* [`adapt-pred`](https://github.com/jnktsj/APPSR#adapt-pred-3-adapter-prediction)
   predicts 3′ adapter sequences in an input FASTQ
 * [`adapt-clip`](https://github.com/jnktsj/APPSR#adapt-clip-adapter-clipping)
   clips 5′ or/and 3′ adapter sequences from input reads
-* [`adapt-qc`](https://github.com/jnktsj/APPSR#adapt-qc-exhaustive-3adapter-search-and-quality-control)
+* [`adapt-qc`](https://github.com/jnktsj/APPSR#adapt-qc-exhaustive-3-adapter-search-and-quality-control)
   search 3′ adapter sequences exhaustively and does quality control
 * [`qual-offset`](https://github.com/jnktsj/APPSR#qual-offset-quality-offset-estimation)
   estimates ASCII-encoded quality score offsets
