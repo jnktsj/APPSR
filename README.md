@@ -6,16 +6,16 @@ APPSR: automated preprocessing pipeline for meta-analysis of small RNA sequencin
 ## Introduction
 APPSR is a suite of tools for preprocessing small RNA sequencing
 libraries.  This package enables users to implement an automated
-preprocessing pipeline with only a few command lines (see
+preprocessing pipeline with only a few commands (see
 [Examples](https://github.com/jnktsj/test#examples)).
 
 APPSR is composed of the following six programs:
 * [`adapt-pred`](https://github.com/jnktsj/test#adapt-pred-3adapter-prediction)
-  predicts 3′adapter sequences in an input FASTQ
+  predicts 3′ adapter sequences in an input FASTQ
 * [`adapt-clip`](https://github.com/jnktsj/test#adapt-clip-adapter-clipping)
-  clips 5′ or/and 3′adapter sequences from input reads
+  clips 5′ or/and 3′ adapter sequences from input reads
 * [`adapt-qc`](https://github.com/jnktsj/test#adapt-qc-exhaustive-3adapter-search-and-quality-control)
-  search 3′adapter sequences exhaustively and does quality control
+  search 3′ adapter sequences exhaustively and does quality control
 * [`qual-offset`](https://github.com/jnktsj/test#qual-offset-quality-offset-estimation)
   estimates ASCII-encoded quality score offsets
 * [`qual-trim`](https://github.com/jnktsj/test#qual-trim-quality-trimming)
@@ -24,10 +24,10 @@ APPSR is composed of the following six programs:
   merges identical reads while retaining the counts
 
 ## Requirement
-APPSR requires Python 2.x (x >= 5) under a Linux/Unix environment.
+APPSR requires Python >=2.5 under a Linux/Unix environment.
 
 ## Programs
-To see the usage of each program, simply type:
+To see the usage for each program, type:
 
     $ <program-name> -h
 
@@ -36,19 +36,19 @@ or
     $ <program-name> --help
 
 If the FASTQ files are compressed, decompress the files and pass those
-to the program with pipe. For example:
+to the program using a pipe. For example:
 
     $ zcat <FASTQ.gz> | <program-name> -
 
-### `adapt-pred`: 3′adapter prediction
-`adapt-pred` predicts 3′adapter sequences from input FASTQ.
+### `adapt-pred`: 3′ adapter prediction
+`adapt-pred` predicts 3′ adapter sequences from input FASTQ.
 #### Usage
 
     $ adapt-pred [options] <fastq>
 
 #### Options
 ###### -k BP
-K-mer length to search abundant k-mers in an input FASTQ. The default
+K-mer length to use to compute k-mer frequency in the input FASTQ. The default
 value is 9 nucleotides (nt).
 ###### -r FLOAT
 Cutoff ratio for filtering less frequent k-mers. For each k-mer, a
@@ -56,7 +56,7 @@ ratio of the frequency of the most abundant k-mer to the frequency of
 a target k-mer will be computed. If a ratio is lower than the cutoff
 specified with `-r`, the k-mer with the ratio will be discarded.
 ###### -a
-This option shows other predicted 3′adapter candidates if any.
+This option shows other predicted 3′adapter candidates (if any).
 
 ### `adapt-clip`: adapter clipping
 `adapt-clip` clips either or both 5′ and 3′adapter sequences from
@@ -77,11 +77,11 @@ longer than the adapter match length specified with `-l`.  When the
 `-s` option is used, the input adapter sequence should be at least one
 base longer than the adapter match length.
 ###### --cut-3p BP
-Cut specified number of bases from 3′ends. This option can be combined
+Cut specified number of bases from 3′ ends. This option can be combined
 with the adapter clipping process to trim down specific number of
 bases additionally.
 ###### --cut-5p BP
-Cut specified number of bases from 5′ends. This option can be combined
+Cut specified number of bases from 5′ ends. This option can be combined
 with the adapter clipping process to trim down specific number of
 bases additionally.
 ###### -l BP
@@ -104,8 +104,8 @@ Only print the reads with both 5′ and 3′ adapter matches.
 Print all reads with and without adapter matches if the reads are in
 the range specified with `-m` and `-x`.
 
-### `adapt-qc`: exhaustive 3′adapter search and quality control
-`adapt-qc` searches 3′adapter sequences exhaustively and conducts
+### `adapt-qc`: exhaustive 3′ adapter search and quality control
+`adapt-qc` searches 3′ adapter sequences exhaustively and conducts
 quality control for an input FASTQ. If a 3′adapter sequence is
 specified with `-3`, the program only executes quality control using a
 given genome mapping command.
@@ -113,19 +113,18 @@ given genome mapping command.
 
     $ adapt-qc [options] <mapping_cmd> <fastq>
 
-`<mapping_cmd>` is a genome mapping command that you want to test.
-For this argument, any genome mapping commands with any read mapping
-software package can be used. Only the restrictions of this argument
-are:
-* Specify FASTA as the input read format in a command line
-* Mark the argument for the input read file with `@in`
+`<mapping_cmd>` is the genome mapping command to be tested.
+For this argument, any read mapping software package can be used. 
+The requirements for this argument are:
+* Specify FASTA as the input read format
+* Specify the input read filename as `@in`
 * Specify SAM as the output format for the mapping results
-* Mark the argument for the output SAM file with `@out`
-* Pass `<mapping_cmd>` as a string object in a command for `adapt-qc`
+* Specify the output SAM filename as `@out`
+* Pass `<mapping_cmd>` as a string in the command for `adapt-qc`
 
 For example, when you want to use
 [Bowtie](http://bowtie-bio.sourceforge.net) as a mapping engine, the
-entire command line for `adapt-qc` will be written as:
+entire command line for `adapt-qc` will be:
 
     $ adapt-qc "/path_to/bowtie /path_to/genome_index -p8 -v0 -k1 -S -f @in > @out" <fastq>
 
@@ -137,7 +136,7 @@ entire command line for `adapt-qc` will be written as:
 * `-f`: FASTA input
 
 #### Options
-##### General Option
+##### General Options
 ###### -l BP
 Adapter match length in bp. The default is 7nt. `adapt-qc` only
 considers perfect adapter matches. In other words, `adapt-qc` does not
@@ -150,9 +149,9 @@ Maximum read length in bp. The default is 36nt. For more detail, see
 the `-x` option in `adapt-clip`.
 ##### Option for Evaluation
 ###### -3 SEQ1,SEQ2,...
-Comma-separated list of 3′adapter(s) for quality control.  When the
+Comma-separated list of 3′ adapter(s) for quality control.  When the
 option is specified, `adapt-qc` maps the processed reads after
-clipping each 3′adapter in each run and checks each genome mapping
+clipping each 3′ adapter in every run and checks the genome mapping
 rate.
 ##### Option for Exhaustive Search
 ###### -p FLOAT
@@ -160,20 +159,20 @@ Subsampling fraction of reads in an input FASTQ.  In the default,
 `adapt-qc` uses all reads, i.e., `-p 1.0`.  Small read sets can make
 `adapt-qc` faster.
 ###### -k BEG:END:INT
-k-mers to predict a 3′adapter in an input FASTQ. `BEG` is the smallest
+k-mers to predict a 3′ adapter in the input FASTQ. `BEG` is the smallest
 k-mer to start, `END` is the largest k-mer to end, and `INT` is an
 interval of the k-mers. The default is `9:11:2`, i.e., from 9mer to
 11mer in a 2nt interval (k = 9, 11).
 ###### -r BEG:END:INT
-Cutoff ratios for filtering less abundant k-mers. As the same manner
-as the above option `-k`, `BEG` is the smallest ratio to start, `END`
+Cutoff ratios for filtering less abundant k-mers. As in
+option `-k`, `BEG` is the smallest ratio to start, `END`
 is the largest ratio to end, and `INT` is an interval of the
 ratios. The default is `1.2:1.4:0.1`, i.e., from 1.2 to 1.4 in a 0.1
 interval (r = 1.2, 1.3, 1.4).
 ###### --temp PATH
-Path for a temporal directory. `adapt-qc` creates a temporal directory
+Path for the temporary directory. `adapt-qc` creates a temporary directory
 during a computation. In the default setting, the program makes the
-directory in a current directory, i,e, `./`.
+directory in the current directory.
 
 ### `qual-offset`: quality offset estimation
 `qual-offset` estimates ASCII-encoded quality score offsets.
@@ -183,9 +182,8 @@ directory in a current directory, i,e, `./`.
 
 ### `qual-trim`: quality trimming
 `qual-trim` trims low quality bases in input reads with the same
-quality trimming algorith as the one used by BWA. The program only
-considers single-end sequencing libraries due to the feature of small
-RNA libraries.
+quality trimming algorith as the one used by BWA. Since small RNA libraries
+are typically single-ended, only single-ended reads are assumed.
 
 #### Usage
 
@@ -197,8 +195,9 @@ ASCII-encoded quality score offset, e.g. 33 or 64.  The default is 33
 ###### -p PROB
 Error probability cutoff. The default is 0.1.
 ###### -q SCORE
-Quality score cutoff. In the default setting, the cutoff is calculated
-based on the error probability cutoff specified with `-p`, i.e.,
+Quality score cutoff. By default, the cutoff is automatically calculated
+using the quality score equation for the inferred platform. These equations 
+use the error probability cutoff specified using `-p`, i.e.,
 `error_probability=0.1` is equivalent to `quality_score=10` in Phred
 score.
 ###### -l BP
@@ -215,13 +214,13 @@ quality cutoff `-p` and `-q` are equal or larger than 0.1 and 10.
 Input FASTQ is in Solexa encoding.
 
 ### `read-collapse`: read collapsing
-`read-collapse` merges identical reads while retaining the counts. It
-only takes the output from `adapt-clip` as the input. During the
-computation the program loads extracted sequences in memory. For
+`read-collapse` merges identical reads while retaining the counts. The
+only allowed input is the output from `adapt-clip`. During 
+computation, the program keeps extracted sequences in memory. For
 example, memory usage and runtime of 100 million small RNA reads will
-be around ~2GB and ~5 mins respectively.
+be around ~2GB and ~5 mins, respectively.
 
-If you don't want to use that much memory, you can try:
+To restrict memory usage, you can try:
 
     $ cut -f1 ${FILE} | sort | uniq -c | awk '{print ">"$2"_"$1"\n"$2}'
 
@@ -251,7 +250,7 @@ Output in FASTQ format. It will be composed of 4 lines for a record:
       '~' * [read_length]
 
 Note that `~` is in the ASCII 126, which is the highest printable
-letter in the ASCII code.
+character in the ASCII code.
 
 
 ## Examples
@@ -264,7 +263,7 @@ pipeline.
 # If you don't know the quality offset
 QBASE=`qual-offset ${FASTQ} | cut -f2 -d'='`
 
-# If you don't know the 3′adapter sequence
+# If you don't know the 3′ adapter sequence
 ADAPT=`adapt-pred ${FASTQ} | cut -f2 -d'='`
 
 qual-trim -b ${QBASE} ${FASTQ} | adapt-clip -3 ${ADAPT} - | \
@@ -273,7 +272,7 @@ read-collapse - > clean_reads.fa
 Note
 * `${FASTQ}` is an input FASTQ file
 * `${QBASE}` is an estimated quality offset
-* `${ADAPT}` is a predicted 3′adapter sequence
+* `${ADAPT}` is a predicted 3′ adapter sequence
 
 If you want to do exhaustive adapter search and quality control, try:
 
