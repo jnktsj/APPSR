@@ -1,4 +1,4 @@
-# APPSR
+# APPSR <sub>/æp es aːr/</sub>
 APPSR: automated preprocessing pipeline for meta-analysis of small RNA sequencing data.
 
 (version: 1.0)
