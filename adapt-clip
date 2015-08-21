@@ -31,6 +31,7 @@ def makeRegex(aSeq, aLen, is_3prime, sensitive):
         message = "input adapters longer than %d nt"
         raise Exception(message % (cutoff-1))
 
+    aSeq = aSeq.upper().replace('U', 'T')
     if is_3prime:
         pat = "(.*)"
         pSeq, mSeq = aSeq[:aLen], aSeq[:aLen+1]
