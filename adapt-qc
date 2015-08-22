@@ -217,7 +217,7 @@ def adaptQC(opts, args, path, temp):
     table = []
     for i, aIn in enumerate(adapts):
         if not aIn: continue
-        oIn = "-3 %s -l %d -m %d -x %d" % (aIn, opts.l, opts.m, opts.x)
+        oIn = "-3 %s --seed-3p %d -m %d -x %d" % (aIn, opts.l, opts.m, opts.x)
         cnts = mapInsertCmd(path, oIn, fqIn, cmd, temp)
         res = recordPerform(aIn, cnts, aReads, setstr[i])
         table.append(res)
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     op = OptionParser(usage=usage, description=description)
 
     op.add_option("-l", metavar="BP", default=7, type="int",
-                  help="adapter match length in bp (default=%default)")
+                  help="3'adapter match length in bp (default=%default)")
     op.add_option("-m", metavar="BP", default=16, type="int",
                   help="minimum read length in bp (default=%default)")
     op.add_option("-x", metavar="BP", default=36, type="int",
@@ -246,11 +246,11 @@ if __name__ == "__main__":
     b_op.add_option("-p", metavar="FLOAT", default=1.0, type="float",
                     help="subsampling fraction of reads (default=%default)")
     b_op.add_option("-k", metavar="BEG:END:INT", default="9:11:2",
-                    help="range for kmers (default='%default')")
+                    help="kmers to predict a 3'adapter (default='%default')")
     b_op.add_option("-r", metavar="BEG:END:INT", default="1.2:1.4:0.1",
-                    help="range for filtering ratios (default='%default')")
+                    help="filtering ratios for less abundant kmers (default='%default')")
     b_op.add_option("--temp", metavar="PATH", default=".",
-                    help="path for a temporal directory (default='%default')")
+                    help="path for the temporary directory (default='%default/')")
 
     op.add_option_group(e_op)
     op.add_option_group(b_op)

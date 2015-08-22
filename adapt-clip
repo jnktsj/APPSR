@@ -68,20 +68,22 @@ def matchAdapters(seq, pp, mps, sensitive, pi=0, mi=0, l=0):
 def adaptClip(opts, args):
     if opts.m <= 0: raise Exception("bad value: -m")
     if opts.x <= 0: raise Exception("bad value: -x")
-    if opts.l <= 0: raise Exception("bad value: -l")
     if opts.m == opts.x:
         raise Exception("bad read length cutoff range")
     if not opts.f and not opts.b:
         raise Exception("input adapter sequence")
     if opts.f == opts.b:
-        raise Exception("5' and 3' adapters are the same")
+        raise Exception("5' and 3' adapters are same sequences")
+    if opts.seed_5p <= 0: raise Exception("bad value: --seed-5p")
+    if opts.seed_3p <= 0: raise Exception("bad value: --seed-3p")
     if opts.cut_3p < 0:
         raise Exception("input positive value for 3'trimming")
     if opts.cut_5p < 0:
         raise Exception("input positive value for 5'trimming")
 
     beg, offset = opts.cut_5p, opts.cut_3p
-    fSeq, bSeq, aLen = opts.f, opts.b, opts.l
+    fSeq, fLen = opts.f, opts.seed_5p
+    bSeq, bLen = opts.b, opts.seed_3p
     if not fSeq and bSeq:
         req = lambda x, y: y != '*' or opts.a
     elif fSeq and bSeq:
@@ -92,15 +94,15 @@ def adaptClip(opts, args):
     elif fSeq and not bSeq:
         req = lambda x, y: x != '*' or opts.a
 
-    f_pp, f_mp = makeRegex(fSeq, aLen, False, opts.s)
-    b_pp, b_mp = makeRegex(bSeq, aLen, True,  opts.s)
+    f_pp, f_mp = makeRegex(fSeq, fLen, False, opts.s)
+    b_pp, b_mp = makeRegex(bSeq, bLen, True,  opts.s)
 
     fastqs = fastqInput(fileinput.input(args[0]))
     for seq in fastqs:
         seqLen = len(seq)
         f_i, f_mm = matchAdapters(seq, f_pp, f_mp, opts.s)
         b_i, b_mm = matchAdapters(seq, b_pp, b_mp, opts.s,
-                                  aLen, aLen+1, seqLen)
+                                  bLen, bLen+1, seqLen)
         f_i += beg
         b_i -= offset
         ins = seq[f_i:b_i]
@@ -125,8 +127,10 @@ if __name__ == "__main__":
                   help="cut specified number of bases from 3'ends")
     op.add_option("--cut-5p", metavar="BP", type="int", default=0,
                   help="cut specified number of bases from 5'ends")
-    op.add_option("-l", metavar="BP", default=7, type="int",
-                  help="adapter match length in bp (default=%default)")
+    op.add_option("--seed-3p", metavar="BP", default=7, type="int",
+                  help="3' adapter match length in bp (default=%default)")
+    op.add_option("--seed-5p", metavar="BP", default=7, type="int",
+                  help="5' adapter match length in bp (default=%default)")
     op.add_option("-m", metavar="BP", default=16, type="int",
                   help="minimum read length in bp (default=%default)")
     op.add_option("-x", metavar="BP", default=36, type="int",

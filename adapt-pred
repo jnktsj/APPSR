@@ -112,7 +112,7 @@ if __name__ == "__main__":
     op.add_option("-r", metavar="FLOAT", type="float", default=1.4,
                   help="filtering ratio for less frequent kmers (default=%default)")
     op.add_option("-a", action="store_true",
-                  help="show other candidates if any")
+                  help="show other candidates (if any)")
 
     (opts, args) = op.parse_args()
 

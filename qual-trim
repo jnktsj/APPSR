@@ -84,7 +84,7 @@ if __name__ == "__main__":
     op = OptionParser(usage=usage, description=description)
 
     op.add_option("-b", type="int", metavar="BASE", default=33,
-                  help="ascii base, e.g. 33 or 64 (default=%default)")
+                  help="ASCII-encoded quality offset, e.g. 33 or 64 (default=%default)")
     op.add_option("-p", type="float", metavar="PROB", default=0.1,
                   help="error probability cutoff (default=%default)")
     op.add_option("-q", type="int", metavar="SCORE", default=0,

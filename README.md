@@ -68,14 +68,14 @@ input reads, and extract small RNA inserts.
 #### Options
 ###### -3 SEQ
 3′adapter sequence. An input adapter sequence should be equal or
-longer than the adapter match length specified with `-l`.  When the
-`-s` option is used, the input adapter sequence should be at least one
-base longer than the adapter match length.
+longer than the adapter match length specified with `--seed-3p`.  When
+the `-s` option is used, the input adapter sequence should be at least
+one base longer than the adapter match length.
 ###### -5 SEQ
 5′adapter sequence. An input adapter sequence should be equal or
-longer than the adapter match length specified with `-l`.  When the
-`-s` option is used, the input adapter sequence should be at least one
-base longer than the adapter match length.
+longer than the adapter match length specified with `--seed-5p`.  When
+the `-s` option is used, the input adapter sequence should be at least
+one base longer than the adapter match length.
 ###### --cut-3p BP
 Cut specified number of bases from 3′ ends. This option can be combined
 with the adapter clipping process to trim down specific number of
@@ -84,8 +84,10 @@ bases additionally.
 Cut specified number of bases from 5′ ends. This option can be combined
 with the adapter clipping process to trim down specific number of
 bases additionally.
-###### -l BP
-Adapter match length in bp. The default is 7nt.
+###### --seed-3p BP
+3′ adapter match length in bp. The default is 7nt.
+###### --seed-5p BP
+5′ adapter match length in bp. The default is 7nt.
 ###### -m BP
 Minimum read length in bp. Extracted small RNA reads will be discarded
 if the lengths are *shorter* than the specificed length with `-m`. The
@@ -97,7 +99,7 @@ default is 36nt.
 ###### -s
 Sensitive adapter search with 1 mismatch. When this option is used,
 the length of input adapter(s) should be at least one base longer than
-the adapter match length specified with `-l`.
+the adapter match length specified with `--seed-3p` or `--seed-5p`.
 ###### -B
 Only print the reads with both 5′ and 3′ adapter matches.
 ###### -a
@@ -138,9 +140,10 @@ entire command line for `adapt-qc` will be:
 #### Options
 ##### General Options
 ###### -l BP
-Adapter match length in bp. The default is 7nt. `adapt-qc` only
-considers perfect adapter matches. In other words, `adapt-qc` does not
-use the `-s` option in `adapt-clip`.
+3′ adapter match length in bp (equivalent to `--seed-3p` in
+`adapt-clip`). The default is 7nt. `adapt-qc` only considers perfect
+adapter matches. In other words, `adapt-qc` does not use the `-s`
+option in `adapt-clip`.
 ###### -m BP
 Minimum read length in bp. The default is 16nt. For more detail, see
 the `-m` option in `adapt-clip`.
